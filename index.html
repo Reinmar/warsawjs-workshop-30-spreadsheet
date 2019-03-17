@@ -54,6 +54,7 @@ body {
 .row {
 	position: absolute;
 	width: 100%;
+	display: flex;
 
 	/* Totally deoptimises it... */
 	/* will-change: transform; */
@@ -63,8 +64,8 @@ body {
 }
 
 .cell {
-	position: absolute;
-	box-sizing: border-box;
+/*	position: absolute;
+*/	box-sizing: border-box;
 	padding: 5px;
 
 	overflow: hidden;
@@ -72,6 +73,9 @@ body {
 	text-overflow: ellipsis;
 
 	background: white;
+
+	flex-grow: 0;
+	flex-shrink: 0;
 
 	/* Totally deoptimises it... */
 	/* will-change: transform; */

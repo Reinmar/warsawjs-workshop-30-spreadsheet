@@ -1,9 +1,11 @@
-/* global document, window */
+/* global document, requestAnimationFrame */
 
 const ROW_HEIGHT = 30;
 const COLUMN_WIDTH = 120;
 const BORDER_WIDTH = 1;
 const PRELOAD_ROWS = 5;
+
+const objectsPool = [];
 
 export default class Toby {
 	/**
@@ -47,6 +49,11 @@ export default class Toby {
 		 * @type {Array.<Element>}
 		 */
 		this._renderedRowElements = [];
+
+		this.cellPrototype = document.createElement( 'div' );
+		this.cellPrototype.style.height = ROW_HEIGHT + 'px';
+		this.cellPrototype.style.width = COLUMN_WIDTH + 'px';
+		this.cellPrototype.classList.add( 'cell' );
 	}
 
 	/**
@@ -60,7 +67,13 @@ export default class Toby {
 
 		container.appendChild( this._sentinel );
 
-		observeScrollableViewport( container, () => this.render() );
+		const update = () => {
+			this.render();
+
+			requestAnimationFrame( update );
+		};
+
+		requestAnimationFrame( update );
 	}
 
 	/**
@@ -113,6 +126,7 @@ export default class Toby {
 			} else {
 				// If the current row should not be rendered but is currently rendered, remove it from the DOM.
 				if ( this._renderedRowElements[ row ] ) {
+					objectsPool.push(this._renderedRowElements[ row ]);
 					this._renderedRowElements[ row ].remove();
 					this._renderedRowElements[ row ] = null;
 				}
@@ -137,7 +151,7 @@ export default class Toby {
 		for ( let col = 0; col < this.dataSource.numberOfColumns; col++ ) {
 			const value = this.dataSource.getItem( row, col );
 
-			rowElement.childNodes[ col ].innerHTML = value;
+			rowElement.childNodes[ col ].textContent = value;
 		}
 
 		return rowElement;
@@ -150,15 +164,18 @@ export default class Toby {
 	 * @returns {Element} The rendered row element (with empty cells).
 	 */
 	_createRowElement( row ) {
-		const rowElement = document.createElement( 'div' );
+		let rowElement = objectsPool.pop();
 
-		rowElement.classList.add( 'row' );
-		rowElement.dataset.row = row;
-		rowElement.style.transform = `translateY(${ row * ( ROW_HEIGHT + BORDER_WIDTH ) }px)`;
+		if ( !rowElement ) {
+			rowElement = document.createElement( 'div' );
+			rowElement.classList.add( 'row' );
 
-		for ( let col = 0; col < this.dataSource.numberOfColumns; col++ ) {
-			rowElement.appendChild( this._createCellElement( col ) );
+			for ( let col = 0; col < this.dataSource.numberOfColumns; col++ ) {
+				rowElement.appendChild( this._createCellElement( col ) );
+			}
 		}
+
+		rowElement.style.transform = `translateY(${ row * ( ROW_HEIGHT + BORDER_WIDTH ) }px)`;
 
 		return rowElement;
 	}
@@ -170,19 +187,16 @@ export default class Toby {
 	 * @returns {Element} The rendered row element (with empty cells).
 	 */
 	_createCellElement( col ) {
-		const cellElement = document.createElement( 'div' );
+		const cellElement = this.cellPrototype.cloneNode();
 
-		cellElement.classList.add( 'cell' );
-		cellElement.dataset.col = col;
-		cellElement.style.transform = `translateX(${ col * ( COLUMN_WIDTH + BORDER_WIDTH ) }px)`;
-		cellElement.style.height = ROW_HEIGHT + 'px';
-		cellElement.style.width = COLUMN_WIDTH + 'px';
+		// cellElement.dataset.col = col;
+		// cellElement.style.transform = `translateX(${ col * ( COLUMN_WIDTH + BORDER_WIDTH ) }px)`;
 
 		cellElement.addEventListener( 'mouseenter', () => {
-			this._setCellStatusTo( cellElement.parentNode.dataset.row, col );
+			// this._setCellStatusTo( cellElement.parentNode.dataset.row, col );
 		} );
 		cellElement.addEventListener( 'mouseleave', () => {
-			this._setCellStatusTo( null );
+			// this._setCellStatusTo( null );
 		} );
 
 		return cellElement;
@@ -229,20 +243,6 @@ export default class Toby {
 	}
 }
 
-/**
- * Observes the given scrollable element for changes in its viewport (the visible part of its content).
- *
- * @param {Element} container Scrollable container.
- * @param {Function} callback The function to call when the viewport changes.
- */
-function observeScrollableViewport( container, callback ) {
-	container.addEventListener( 'scroll', onChange );
-	window.addEventListener( 'resize', onChange );
-
-	function onChange() {
-		callback( getViewport( container ) );
-	}
-}
 
 /**
  * Gets the viewport position (the visible part of the given container element's content).
